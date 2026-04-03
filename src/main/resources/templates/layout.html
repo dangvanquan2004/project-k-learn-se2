@@ -20,7 +20,9 @@
 <div class="app-wrapper" id="appWrapper" style="display:contents;">
 
     <!-- Sidebar Navigation -->
-    <aside class="sidebar" id="sidebar">
+
+    <aside class="sidebar">
+
         <div class="sidebar-header">
             <div class="logo">
                 <span class="logo-icon">🇰🇷</span>
@@ -31,64 +33,70 @@
 
         <nav class="sidebar-nav">
             <ul>
-                <li><a th:href="@{/dashboard}" class="nav-link" th:classappend="${currentPage == 'dashboard'} ? ' active'" data-page="dashboard">
-                    <span class="nav-icon">📊</span><span class="nav-text">Dashboard</span>
-                </a></li>
-                <li><a th:href="@{/hangul}" class="nav-link" th:classappend="${currentPage == 'hangul'} ? ' active'" data-page="hangul">
-                    <span class="nav-icon">🔤</span><span class="nav-text">Bảng chữ Hangul</span>
-                </a></li>
-                <li><a th:href="@{/vocabulary}" class="nav-link" th:classappend="${currentPage == 'vocabulary'} ? ' active'" data-page="vocabulary">
-                    <span class="nav-icon">📚</span><span class="nav-text">Từ vựng</span>
-                </a></li>
-                <li><a th:href="@{/grammar}" class="nav-link" th:classappend="${currentPage == 'grammar'} ? ' active'" data-page="grammar">
-                    <span class="nav-icon">📝</span><span class="nav-text">Ngữ pháp</span>
-                </a></li>
 
-                <li class="nav-divider"><span>Kỹ năng</span></li>
-                <li><a th:href="@{/listening}" class="nav-link" th:classappend="${currentPage == 'listening'} ? ' active'" data-page="listening">
-                    <span class="nav-icon">🎧</span><span class="nav-text">Nghe</span>
-                </a></li>
-                <li><a th:href="@{/speaking}" class="nav-link" th:classappend="${currentPage == 'speaking'} ? ' active'" data-page="speaking">
-                    <span class="nav-icon">🗣️</span><span class="nav-text">Nói</span>
-                </a></li>
-                <li><a th:href="@{/reading}" class="nav-link" th:classappend="${currentPage == 'reading'} ? ' active'" data-page="reading">
-                    <span class="nav-icon">📖</span><span class="nav-text">Đọc</span>
-                </a></li>
-                <li><a th:href="@{/writing}" class="nav-link" th:classappend="${currentPage == 'writing'} ? ' active'" data-page="writing">
-                    <span class="nav-icon">✍️</span><span class="nav-text">Viết</span>
-                </a></li>
+                <!-- DASHBOARD -->
+                <li>
+                    <a th:href="@{/dashboard}"
+                       th:classappend="${currentPage == 'dashboard'} ? 'active'"
+                       class="nav-link">
+                        📊 Dashboard
+                    </a>
+                </li>
 
+                <!-- ================= COURSE BASED ================= -->
+                <li class="nav-divider"><span>Học theo lộ trình</span></li>
+
+                <li>
+                    <a th:href="@{/courses}"
+                       th:classappend="${currentPage == 'courses'} ? 'active'"
+                       class="nav-link">
+                        📚 Khóa học
+                    </a>
+                </li>
+
+                <!-- ================= PRACTICE ================= -->
                 <li class="nav-divider"><span>Luyện tập</span></li>
-                <li><a th:href="@{/flashcards}" class="nav-link" th:classappend="${currentPage == 'flashcards'} ? ' active'" data-page="flashcards">
-                    <span class="nav-icon">🃏</span><span class="nav-text">Flashcards</span>
-                </a></li>
-                <li><a th:href="@{/quiz}" class="nav-link" th:classappend="${currentPage == 'quiz'} ? ' active'" data-page="quiz">
-                    <span class="nav-icon">🏆</span><span class="nav-text">Kiểm tra</span>
-                </a></li>
 
-                <li class="nav-divider"><span>Giáo trình</span></li>
-                <li><a th:href="@{/roadmap}" class="nav-link" th:classappend="${currentPage == 'roadmap'} ? ' active'" data-page="roadmap">
-                    <span class="nav-icon">🗺️</span><span class="nav-text">Lộ trình học</span>
-                </a></li>
+                <li>
+                    <a th:href="@{/flashcards}"
+                       th:classappend="${currentPage == 'flashcards'} ? 'active'"
+                       class="nav-link">
+                        🃏 Flashcards
+                    </a>
+                </li>
 
-                <li class="nav-divider"><span>Leaderboard</span></li>
-                <li><a th:href="@{/leaderboard}" class="nav-link" th:classappend="${currentPage == 'leaderboard'} ? ' active'" data-page="leaderboard">
-                    <span class="nav-icon">🏅</span><span class="nav-text">Bảng xếp hạng</span>
-                </a></li>
+                <li>
+                    <a th:href="@{/quiz}"
+                       th:classappend="${currentPage == 'quiz'} ? 'active'"
+                       class="nav-link">
+                        🏆 Kiểm tra
+                    </a>
+                </li>
+
+                <!-- ================= PROGRESS ================= -->
+                <li class="nav-divider"><span>Tiến độ</span></li>
+
+                <li>
+                    <a th:href="@{/leaderboard}"
+                       th:classappend="${currentPage == 'leaderboard'} ? 'active'"
+                       class="nav-link">
+                        🏅 Bảng xếp hạng
+                    </a>
+                </li>
 
                 <li class="nav-divider"><span>Cộng đồng</span></li>
                 <li><a th:href="@{/studyroom}" class="nav-link" th:classappend="${currentPage == 'studyroom'} ? ' active'" data-page="studyroom">
                     <span class="nav-icon">🏫</span><span class="nav-text">Phòng học</span>
                 </a></li>
-                
+
                 <li class="nav-divider"><span>Tài khoản</span></li>
                 <li><a th:href="@{/profile}" class="nav-link" th:classappend="${currentPage == 'profile'} ? ' active'" data-page="profile">
                     <span class="nav-icon">👤</span><span class="nav-text">Hồ sơ</span>
                 </a></li>
+
             </ul>
         </nav>
     </aside>
-
     <!-- Top Header Bar -->
     <header class="top-header" id="topHeader">
         <button class="menu-toggle" id="menuToggle" aria-label="Toggle menu">
@@ -106,7 +114,7 @@
             <div id="dictSearchResults" class="search-dropdown" style="display:none;"></div>
         </div>
 
-        <div class="header-streak" id="headerStreak">🔥 <span id="headerStreakCount" th:text="${user != null ? user.streakCount : 0}">0</span></div>
+        <div class="header-streak" id="headerStreak">🔥 <span id="headerStreakCount" th:text="${progress != null ? progress.streak : 0}">0</span></div>
 
         <button id="theme-toggle" type="button" onclick="toggleDarkMode()" class="btn btn-secondary" style="padding:8px 12px; margin-left: 12px;">🌙</button>
 
@@ -156,7 +164,7 @@
         </div>
     </div>
     <!-- Hidden logout form for Spring Security -->
-    <form id="logoutForm" th:action="@{/auth/logout}" method="post" style="display:none;">
+    <form id="logoutForm" th:action="@{/auth/logout}" method="get" style="display:none;">
     </form>
 
     <!-- Word Detail Modal (Global Dictionary) -->
@@ -203,3 +211,4 @@
 <script th:src="@{/js/app.js}"></script>
 </body>
 </html>
+www.thymeleaf.org

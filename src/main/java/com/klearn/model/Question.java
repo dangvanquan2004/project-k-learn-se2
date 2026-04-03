@@ -26,4 +26,8 @@ public class Question {
 
     @Column(name = "audio_url", length = 500)
     private String audioUrl;
+
+    // Thêm vào bên trong class Question
+    @OneToMany(mappedBy = "question", fetch = FetchType.LAZY)
+    private java.util.List<Answer> answers;
 }

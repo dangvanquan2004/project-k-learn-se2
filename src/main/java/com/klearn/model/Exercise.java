@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Entity
 @Table(name = "exercise")
 @Data
@@ -24,7 +26,8 @@ public class Exercise {
 
     @Column(name = "audio_url", length = 500)
     private String audioUrl;
-
+    @OneToMany(mappedBy = "exercise", fetch = FetchType.LAZY)
+    private List<Question> questions;
     public enum ExerciseType {
         listening, speaking, reading, writing
     }
