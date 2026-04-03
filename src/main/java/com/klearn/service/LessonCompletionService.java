@@ -91,7 +91,7 @@ public class LessonCompletionService {
 
         List<UserAnswer> userAnswers = userAnswerRepository.findByUser_UserIdAndQuestion_Exercise_Lesson_LessonId(userId, lessonId);
 
-        // Choose latest submission per question_id (so retry doesn't keep old wrong answers forever).
+        // Choose late  st submission per question_id (so retry doesn't keep old wrong answers forever).
         Map<Long, UserAnswer> latestByQuestionId = userAnswers.stream()
             .filter(ua -> ua.getQuestion() != null && ua.getQuestion().getQuestionId() != null)
             .collect(Collectors.toMap(

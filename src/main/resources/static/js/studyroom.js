@@ -1,13 +1,13 @@
-// =============================================================================
-// studyroom.js — Gộp toàn bộ logic từ speaking-room.js + studyroom
-// =============================================================================
+
 
 // ---------- STATE ----------
 let stompClient   = null;
 let activeRoomId  = null;
 let micStates     = {};        // userId -> boolean
 let lastParticipants = [];
-
+let currentSubscriptions = []; // Lưu danh sách các kênh đang đăng ký
+let localStream   = null;
+let videoStates   = {}; // userId -> boolean
 // ---------- UTILS ----------
 function getUserId() {
     return window.KLEARN_USER_ID || null;
@@ -22,10 +22,8 @@ function _toast(msg, type = 'info') {
     }
 }
 
-// =============================================================================
-// MODAL TẠO PHÒNG
-// =============================================================================
 
+// MODAL TẠO PHÒNG
 function openCreateRoomModal() {
     document.getElementById('createRoomModal').style.display = 'flex';
 }
@@ -39,20 +37,31 @@ function closeCreateRoomModal() {
 async function createRoom(event) {
     event.preventDefault();
 
-    const name = document.getElementById('roomName').value.trim();
-    const desc = document.getElementById('roomDesc').value.trim();
-    const mode = document.querySelector('input[name="roomMode"]:checked')?.value || 'chat';
+    // 1. Lấy chuỗi text từ các ô input
+    const nameInput = document.getElementById('roomName').value.trim();
+    const descInput = document.getElementById('roomDesc').value.trim();
+    const modeInput = document.querySelector('input[name="roomMode"]:checked')?.value || 'chat';
 
-    if (!name) {
+    if (!nameInput) {
         _toast('Vui lòng nhập tên phòng', 'error');
         return;
     }
+
+    // 2. Gom dữ liệu thành 1 Object phẳng (KHÔNG lồng Object bên trong)
+    const requestBody = {
+        roomName: nameInput,
+        maxParticipants: 10,
+        description: descInput
+    };
+
+    // IN RA CONSOLE ĐỂ BẮT TẬN TAY DỮ LIỆU
+    console.log("PAYLOAD SẼ GỬI LÊN:", JSON.stringify(requestBody));
 
     try {
         const res = await fetch('/api/speaking-rooms', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, maxParticipants: 10, description: desc })
+            body: JSON.stringify(requestBody) // Chuyển thành chuỗi JSON chuẩn
         });
 
         if (!res.ok) {
@@ -69,17 +78,17 @@ async function createRoom(event) {
 
         // Vào ngay phòng vừa tạo
         if (room?.roomId) {
-            await _enterRoom(room, mode);
+            await _enterRoom(room, modeInput);
         }
     } catch (e) {
-        console.error(e);
+        console.error("Lỗi mạng:", e);
         _toast('Lỗi kết nối máy chủ', 'error');
     }
 }
 
-// =============================================================================
+
 // THAM GIA PHÒNG QUA MÃ
-// =============================================================================
+
 async function joinRoomByCode() {
     const code = document.getElementById('joinRoomCode').value.trim();
     if (!code) {
@@ -96,9 +105,9 @@ async function joinRoomByCode() {
     await joinRoom(roomId);
 }
 
-// =============================================================================
+
 // DANH SÁCH PHÒNG
-// =============================================================================
+
 async function fetchAndRenderRooms() {
     try {
         const res = await fetch('/api/speaking-rooms');
@@ -193,8 +202,16 @@ async function leaveRoom() {
 function leaveCurrentRoom() { leaveRoom(); }
 
 function _resetRoomState() {
+if (localStream) {
+        localStream.getTracks().forEach(t => t.stop());
+        localStream = null;
+    }
+// Unsubscribe toàn bộ các topic của phòng cũ
+    currentSubscriptions.forEach(sub => sub.unsubscribe());
+    currentSubscriptions = [];
     activeRoomId     = null;
     micStates        = {};
+    videoStates      = {};
     lastParticipants = [];
 }
 
@@ -214,6 +231,18 @@ function _showRoomView(room) {
         room.createdBy?.name || room.createdByName || '—';
     document.getElementById('roomModeName').textContent   =
         modeLabel(room.mode || room.roomMode);
+
+
+    const deleteBtn = document.getElementById('deleteRoomBtn');
+    const currentUserId = getUserId();
+    const creatorId = room.createdBy?.userId; // Lấy ID của chủ phòng
+
+        // Nếu ID người dùng hiện tại trùng với ID người tạo phòng -> Hiện nút
+    if (currentUserId != null && creatorId != null && String(currentUserId) === String(creatorId)) {
+         deleteBtn.style.display = 'inline-block';
+    } else {
+         deleteBtn.style.display = 'none';
+    }
 }
 
 // Gọi từ createRoom — truyền thêm mode
@@ -255,7 +284,7 @@ function sendMessage() {
     stompClient.send(
         `/app/speaking-room/${activeRoomId}/chat`,
         {},
-        JSON.stringify({ userId: getUserId(), message: text })
+        JSON.stringify({ userId: getUserId(), userName: currentUserName, message: text })
     );
     input.value = '';
 }
@@ -312,6 +341,7 @@ function ensureStompConnection() {
 function subscribeRoomTopics(roomId) {
     if (!stompClient) return;
 
+    currentSubscriptions.push(
     // --- Danh sách người tham gia ---
     stompClient.subscribe(`/topic/speaking-room/${roomId}/participants`, (frame) => {
         try {
@@ -319,9 +349,11 @@ function subscribeRoomTopics(roomId) {
             lastParticipants   = Array.isArray(participants) ? participants : [];
             renderParticipants(lastParticipants);
         } catch (e) { console.error(e); }
-    });
+    })
+    );
 
     // --- Trạng thái mic ---
+     currentSubscriptions.push(
     stompClient.subscribe(`/topic/speaking-room/${roomId}/mic`, (frame) => {
         try {
             const msg = JSON.parse(frame.body);
@@ -330,15 +362,17 @@ function subscribeRoomTopics(roomId) {
                 renderParticipants(lastParticipants);
             }
         } catch (e) { console.error(e); }
-    });
-
+    })
+    );
     // --- Chat ---
+    currentSubscriptions.push(
     stompClient.subscribe(`/topic/speaking-room/${roomId}/chat`, (frame) => {
         try {
             const msg = JSON.parse(frame.body);
             _appendChatMessage(msg);
         } catch (e) { console.error(e); }
-    });
+    })
+    );
 }
 
 // =============================================================================
@@ -399,12 +433,97 @@ function toggleMic() {
 }
 
 // Placeholder — mở rộng sau khi tích hợp WebRTC
-function toggleVideo() {
-    _toast('Tính năng camera đang được phát triển 🎥', 'info');
+// =============================================================================
+// CAMERA (Local MediaStream)
+// =============================================================================
+async function toggleVideo() {
+    if (!activeRoomId) return;
+    const userId = getUserId();
+    if (userId == null) return;
+
+    const btn = document.getElementById('toggleVideoBtn');
+    const isVideoCurrentlyOn = videoStates[userId] === true;
+
+    if (!isVideoCurrentlyOn) {
+        // BẬT CAMERA
+        try {
+            // Xin quyền truy cập Camera từ trình duyệt
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            videoStates[userId] = true;
+
+            btn.textContent = '🚫 Tắt Camera';
+            btn.classList.replace('btn-secondary', 'btn-primary'); // Đổi màu nút
+
+            _showLocalVideo(localStream);
+
+        } catch (e) {
+            console.error("Lỗi Camera:", e);
+            _toast('Không thể truy cập Camera. Hãy kiểm tra quyền trình duyệt!', 'error');
+        }
+    } else {
+        // TẮT CAMERA
+        if (localStream) {
+            // Tắt đèn camera trên laptop
+            localStream.getVideoTracks().forEach(track => track.stop());
+            localStream = null;
+        }
+        videoStates[userId] = false;
+
+        btn.textContent = '🎥 Bật Camera';
+        btn.classList.replace('btn-primary', 'btn-secondary'); // Trả lại màu cũ
+
+        _removeLocalVideo();
+    }
 }
 
-function deleteRoom() {
-    _toast('Tính năng xoá phòng đang được phát triển', 'info');
+function _showLocalVideo(stream) {
+    const grid = document.getElementById('roomVideoGrid');
+    grid.style.display = 'grid'; // Hiện khung chứa video lên
+
+    let container = document.getElementById('localVideoContainer');
+    if (!container) {
+        container = document.createElement('div');
+        container.id = 'localVideoContainer';
+        container.className = 'video-container'; // Tái sử dụng CSS có sẵn của bạn
+        container.innerHTML = `
+            <video id="localVideo" autoplay muted playsinline></video>
+            <div class="video-name-badge">Bạn</div>
+        `;
+        grid.prepend(container);
+    }
+
+    const video = document.getElementById('localVideo');
+    if (video) video.srcObject = stream;
+}
+
+function _removeLocalVideo() {
+    const container = document.getElementById('localVideoContainer');
+    if (container) container.remove();
+
+    // Nếu không còn video nào thì ẩn luôn cái khung xám đi
+    const grid = document.getElementById('roomVideoGrid');
+    if (grid && grid.children.length === 0) {
+        grid.style.display = 'none';
+    }
+}
+
+async function deleteRoom() {
+    if (!activeRoomId) return;
+    if (!confirm('Bạn có chắc chắn muốn xoá phòng này không? Các thành viên khác sẽ bị đẩy ra ngoài.')) return;
+
+    try {
+        const res = await fetch(`/api/speaking-rooms/${activeRoomId}`, { method: 'DELETE' });
+        if (!res.ok) {
+            const err = await res.json();
+            _toast(err.message || 'Không thể xoá phòng', 'error');
+            return;
+        }
+
+        _toast('Đã xoá phòng thành công', 'success');
+        leaveRoom(); // Tự động rời phòng về trang chủ
+    } catch (e) {
+        _toast('Lỗi kết nối máy chủ', 'error');
+    }
 }
 
 // =============================================================================

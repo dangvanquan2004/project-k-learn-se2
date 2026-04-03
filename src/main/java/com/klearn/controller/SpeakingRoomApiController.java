@@ -1,12 +1,11 @@
 package com.klearn.controller;
 
 import com.klearn.dto.ApiResponse;
+import com.klearn.dto.CreateRoomRequest;
 import com.klearn.dto.SpeakingRoomParticipantDto;
 import com.klearn.model.SpeakingRoom;
-import com.klearn.model.User;
 import com.klearn.security.UserDetailsImpl;
 import com.klearn.service.SpeakingRoomService;
-import lombok.Data;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -32,18 +31,19 @@ public class SpeakingRoomApiController {
 
     @PostMapping
     public ResponseEntity<ApiResponse<SpeakingRoom>> createRoom(
-        @RequestBody CreateRoomRequest request,
-        @AuthenticationPrincipal UserDetailsImpl user
+            @RequestBody CreateRoomRequest request,
+            @AuthenticationPrincipal UserDetailsImpl user
     ) {
         if (user == null) return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+        if (request == null || request.getRoomName() == null) {
+            return ResponseEntity.badRequest().body(ApiResponse.error("Room name is required"));
+        }
 
-        User createdBy = user.getUser();
-        Integer maxParticipants = request != null ? request.getMaxParticipants() : null;
         SpeakingRoom room = speakingRoomService.createRoom(
                 request.getRoomName(),
                 request.getMaxParticipants(),
-                request.getDescription(), // ← thêm vào đây
-                createdBy
+                request.getDescription(),
+                user.getUser()
         );
 
         broadcastParticipants(room.getRoomId());
@@ -73,17 +73,26 @@ public class SpeakingRoomApiController {
         broadcastParticipants(roomId);
         return ResponseEntity.ok(ApiResponse.success("Left", null));
     }
+    @DeleteMapping("/{id}")
+    public ResponseEntity<ApiResponse<Void>> deleteRoom(
+            @PathVariable("id") Long roomId,
+            @AuthenticationPrincipal UserDetailsImpl user
+    ) {
+        if (user == null) return ResponseEntity.status(401).body(ApiResponse.error("Unauthorized"));
+
+        speakingRoomService.deleteRoom(roomId, user.getUserId());
+
+        // Tuỳ chọn: Broadcast một tin nhắn để các user khác biết phòng đã đóng và tự động văng ra
+        messagingTemplate.convertAndSend("/topic/speaking-room/" + roomId + "/deleted", "DELETED");
+
+        return ResponseEntity.ok(ApiResponse.success("Deleted", null));
+    }
 
     private void broadcastParticipants(Long roomId) {
         List<SpeakingRoomParticipantDto> participants = speakingRoomService.listParticipants(roomId);
         messagingTemplate.convertAndSend("/topic/speaking-room/" + roomId + "/participants", participants);
     }
 
-    @Data
-    static class CreateRoomRequest {
-        private String roomName;
-        private Integer maxParticipants;
-        private String description;
-    }
+
 }
 

@@ -8,6 +8,7 @@ import com.klearn.repository.RoomParticipantRepository;
 import com.klearn.repository.SpeakingRoomRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -71,9 +72,37 @@ public class SpeakingRoomService {
         roomParticipantRepository.save(rp);
     }
 
+    @Transactional
     public void leaveRoom(Long roomId, User user) {
         Optional<RoomParticipant> existing = roomParticipantRepository.findByRoom_RoomIdAndUser_UserId(roomId, user.getUserId());
-        existing.ifPresent(roomParticipantRepository::delete);
+
+        if (existing.isPresent()) {
+            roomParticipantRepository.delete(existing.get());
+
+            // Cập nhật lại trạng thái phòng nếu không còn ai
+            long remainingParticipants = roomParticipantRepository.findByRoom_RoomId(roomId).size() - 1; // Trừ đi người vừa rời
+            if (remainingParticipants <= 0) {
+                SpeakingRoom room = speakingRoomRepository.findById(roomId).orElse(null);
+                if (room != null) {
+                    room.setIsActive(false); // Tự động đóng phòng khi trống
+                    speakingRoomRepository.save(room);
+                }
+            }
+        }
+    }
+    @Transactional
+    public void deleteRoom(Long roomId, Long userId) {
+        SpeakingRoom room = speakingRoomRepository.findById(roomId)
+                .orElseThrow(() -> new IllegalArgumentException("Room not found"));
+
+        // Kiểm tra quyền: Chỉ người tạo mới được xoá
+        if (!room.getCreatedBy().getUserId().equals(userId)) {
+            throw new IllegalArgumentException("Chỉ chủ phòng mới có quyền xoá phòng");
+        }
+
+        // Vô hiệu hóa phòng thay vì xoá cứng khỏi DB để giữ lịch sử
+        room.setIsActive(false);
+        speakingRoomRepository.save(room);
     }
 
     public List<SpeakingRoomParticipantDto> listParticipants(Long roomId) {

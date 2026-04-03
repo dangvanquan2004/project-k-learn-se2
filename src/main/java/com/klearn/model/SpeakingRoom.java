@@ -1,8 +1,10 @@
 package com.klearn.model;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 
 @Entity
@@ -18,6 +20,7 @@ public class SpeakingRoom {
     @Column(nullable = false, length = 100)
     private String name;
 
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "passwordHash"})
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "created_by", nullable = false)
     private User createdBy;

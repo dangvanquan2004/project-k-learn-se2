@@ -106,7 +106,7 @@
             <div id="dictSearchResults" class="search-dropdown" style="display:none;"></div>
         </div>
 
-        <div class="header-streak" id="headerStreak">🔥 <span id="headerStreakCount" th:text="${progress != null ? progress.streak : 0}">0</span></div>
+        <div class="header-streak" id="headerStreak">🔥 <span id="headerStreakCount" th:text="${user != null ? user.streakCount : 0}">0</span></div>
 
         <button id="theme-toggle" type="button" onclick="toggleDarkMode()" class="btn btn-secondary" style="padding:8px 12px; margin-left: 12px;">🌙</button>
 
@@ -156,7 +156,7 @@
         </div>
     </div>
     <!-- Hidden logout form for Spring Security -->
-    <form id="logoutForm" th:action="@{/auth/logout}" method="get" style="display:none;">
+    <form id="logoutForm" th:action="@{/auth/logout}" method="post" style="display:none;">
     </form>
 
     <!-- Word Detail Modal (Global Dictionary) -->
