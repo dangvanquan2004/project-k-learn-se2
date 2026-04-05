@@ -1,15 +1,44 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org"
+<html lang="vi" xmlns:th="http://www.thymeleaf.org"
       xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
       layout:decorate="~{layout}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title th:text="${lesson.title + ' - Player'}">Lesson Player</title>
+    <style>
+        /* ================= CSS CHO GIAO DIỆN QUIZ ================= */
+        .quiz-player-container { background: var(--bg-card, #ffffff); border: 2px solid var(--border, #e2e8f0); border-radius: 20px; padding: 30px; max-width: 700px; margin: 0 auto; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        .quiz-progress-text { font-weight: 700; color: var(--text-muted); margin-bottom: 8px; font-size: 14px; }
+        .quiz-progress-bar-wrap { width: 100%; height: 12px; background: var(--bg-secondary, #f1f5f9); border-radius: 10px; overflow: hidden; margin-bottom: 30px; }
+        .quiz-progress-fill { height: 100%; background: var(--green, #10B981); transition: width 0.5s ease-out; border-radius: 10px; }
+        .quiz-question-text { font-size: 22px; font-weight: 800; color: var(--text-primary); margin-bottom: 24px; line-height: 1.4; }
+        .quiz-options-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 30px; }
+        .quiz-opt-btn { background: var(--bg-surface, #f8fafc); border: 2px solid var(--border, #e2e8f0); border-radius: 16px; padding: 20px; font-size: 16px; font-weight: 600; color: var(--text-primary); cursor: pointer; transition: all 0.2s; text-align: left; }
+        .quiz-opt-btn:hover:not(:disabled) { border-color: var(--blue, #3b82f6); background: #eff6ff; transform: translateY(-2px); }
+        .quiz-opt-btn.selected { border-color: var(--blue); background: #eff6ff; box-shadow: 0 4px 0 var(--blue); transform: translateY(-2px); }
+        .quiz-opt-btn.correct { border-color: var(--green); background: #ecfdf5; box-shadow: 0 4px 0 var(--green); color: #065f46; }
+        .quiz-opt-btn.wrong { border-color: var(--coral, #ef4444); background: #fef2f2; box-shadow: 0 4px 0 var(--coral); color: #991b1b; }
+        .quiz-opt-btn:disabled { cursor: default; }
+        .quiz-player-footer { display: flex; flex-direction: column; gap: 20px; border-top: 2px solid var(--border); padding-top: 20px; }
+        .quiz-feedback { display: flex; align-items: center; gap: 16px; padding: 16px; border-radius: 16px; }
+        .quiz-feedback.success { background: #ecfdf5; color: #065f46; border: 1px solid var(--green); }
+        .quiz-feedback.error { background: #fef2f2; color: #991b1b; border: 1px solid var(--coral); }
+        .feedback-icon { font-size: 28px; }
+        .feedback-title { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+        .btn-check { padding: 14px 0; font-size: 18px; border-radius: 12px; width: 100%; transition: 0.2s; }
+        .btn-check:disabled { opacity: 0.5; cursor: not-allowed; }
+        .quiz-summary-container { text-align: center; padding: 50px 20px; background: var(--bg-card); border-radius: 20px; border: 2px solid var(--border); max-width: 500px; margin: 0 auto; }
+        .summary-icon { font-size: 64px; margin-bottom: 16px; }
+        .summary-title { font-size: 28px; font-weight: 800; margin-bottom: 12px; }
+        .summary-score { font-size: 20px; color: var(--text-secondary); margin-bottom: 30px; }
+        .summary-score span { font-weight: 800; color: var(--green); font-size: 24px; }
+    </style>
 </head>
 <body>
 <div layout:fragment="content">
     <section class="page active" id="page-lesson-player">
+
         <div class="page-header">
             <div>
                 <h2 class="page-title" th:text="${lesson.title}">Lesson</h2>
@@ -27,27 +56,182 @@
             </div>
         </section>
 
-        <section>
-            <h2 class="section-title">Bài tập</h2>
-            <div th:if="${exercises == null || #lists.isEmpty(exercises)}">
-                <p>No exercises found.</p>
+        <section class="lesson-exercise-section">
+            <h2 class="section-title">Luyện tập</h2>
+
+            <div th:if="${exercises == null or #lists.isEmpty(exercises)}">
+                <p>Bài học này chưa có bài tập nào.</p>
             </div>
 
-            <div th:if="${exercises != null}">
-                <div th:each="ex : ${exercises}">
-                    <div class="progress-item" style="margin-bottom:12px;">
-                        <div class="progress-item-header">
-                            <span style="font-weight:800;" th:text="${ex.type}">speaking</span>
-                            <span style="color:var(--text-secondary); font-size:13px;"
-                                  th:text="${ex.audioUrl != null ? 'Có audio' : ''}"></span>
+            <div th:if="${exercises != null and !#lists.isEmpty(exercises)}">
+
+                <div class="quiz-player-container" id="quizPlayerContainer">
+                    <div class="quiz-player-header">
+                        <div class="quiz-progress-text" id="quizProgressText">Câu 1/10</div>
+                        <div class="quiz-progress-bar-wrap">
+                            <div class="quiz-progress-fill" id="quizProgressFill" style="width: 0%;"></div>
                         </div>
-                        <p style="color:var(--text-secondary);">Exercise UI will be implemented later.</p>
                     </div>
+
+                    <div class="quiz-question-area">
+                        <h3 class="quiz-question-text" id="quizQuestionText">Đang tải câu hỏi...</h3>
+                        <div class="quiz-options-grid" id="quizOptionsGrid"></div>
+                    </div>
+
+                    <div class="quiz-player-footer">
+                        <div class="quiz-feedback" id="quizFeedback" style="display:none;">
+                            <div class="feedback-icon" id="feedbackIcon">✅</div>
+                            <div class="feedback-content">
+                                <div class="feedback-title" id="feedbackTitle">Chính xác!</div>
+                                <div class="feedback-desc" id="feedbackDesc"></div>
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-check" id="btnNextQuiz" onclick="handleNextAction()" disabled>Kiểm tra</button>
+                    </div>
+                </div>
+
+                <div class="quiz-summary-container" id="quizSummaryContainer" style="display:none;">
+                    <div class="summary-icon">🎉</div>
+                    <h2 class="summary-title">Hoàn thành bài học!</h2>
+                    <p class="summary-score">Điểm của bạn: <span id="finalScoreText">0</span>%</p>
+                    <button class="btn btn-primary" onclick="window.location.href='/dashboard'">Về trang chủ</button>
                 </div>
             </div>
         </section>
     </section>
+
+    <script th:inline="javascript">
+        let quizList = [];
+
+        try {
+            // Tự động bóc tách data bằng Thymeleaf thay vì ném cục JSON gây lỗi
+            /*[# th:if="${exercises != null}"]*/
+                /*[# th:each="ex : ${exercises}"]*/
+                    /*[# th:if="${ex.type != null and (ex.type.name() == 'reading' or ex.type.name() == 'listening')}"]*/
+                        /*[# th:if="${ex.questions != null}"]*/
+                            /*[# th:each="q : ${ex.questions}"]*/
+                                var qObj = {
+                                    questionId: /*[[${q.questionId}]]*/ 0,
+                                    content: /*[[${q.content}]]*/ '',
+                                    answers: []
+                                };
+
+                                /*[# th:if="${q.answers != null}"]*/
+                                    /*[# th:each="ans : ${q.answers}"]*/
+                                        qObj.answers.push({
+                                            answerId: /*[[${ans.answerId}]]*/ 0,
+                                            content: /*[[${ans.content}]]*/ '',
+                                            isCorrect: /*[[${ans.isCorrect}]]*/ false
+                                        });
+                                    /*[/]*/
+                                /*[/]*/
+
+                                quizList.push(qObj);
+                            /*[/]*/
+                        /*[/]*/
+                    /*[/]*/
+                /*[/]*/
+            /*[/]*/
+        } catch(error) {
+            console.error("Lỗi khi load dữ liệu câu hỏi:", error);
+        }
+
+        let currentQuizIndex = 0;
+        let selectedBtn = null;
+        let correctAnswersCount = 0;
+        let isChecking = true;
+
+        document.addEventListener('DOMContentLoaded', () => {
+            if(quizList.length > 0) {
+                renderQuiz();
+            } else {
+                document.getElementById('quizPlayerContainer').innerHTML =
+                    "<p style='text-align:center; color:var(--text-muted);'>Chưa có câu hỏi trắc nghiệm nào cho bài tập này. (Hoặc dữ liệu DB đang trống)</p>";
+            }
+        });
+
+        function renderQuiz() {
+            const currentQ = quizList[currentQuizIndex];
+
+            document.getElementById('quizProgressText').textContent = `Câu ${currentQuizIndex + 1} / ${quizList.length}`;
+            const pct = (currentQuizIndex / quizList.length) * 100;
+            document.getElementById('quizProgressFill').style.width = `${pct}%`;
+
+            document.getElementById('quizQuestionText').textContent = currentQ.content || 'Nội dung câu hỏi';
+            document.getElementById('quizFeedback').style.display = 'none';
+
+            const btnNext = document.getElementById('btnNextQuiz');
+            btnNext.textContent = 'Kiểm tra';
+            btnNext.disabled = true;
+            btnNext.style.background = 'var(--text-muted)';
+
+            selectedBtn = null;
+            isChecking = true;
+
+            const grid = document.getElementById('quizOptionsGrid');
+            grid.innerHTML = currentQ.answers.map((ans) => {
+                return `<button class="quiz-opt-btn" data-correct="${ans.isCorrect}" onclick="selectOption(this)">${ans.content}</button>`;
+            }).join('');
+        }
+
+        function selectOption(btnElement) {
+            if(!isChecking) return;
+
+            document.querySelectorAll('.quiz-opt-btn').forEach(b => b.classList.remove('selected'));
+            btnElement.classList.add('selected');
+            selectedBtn = btnElement;
+
+            const btnNext = document.getElementById('btnNextQuiz');
+            btnNext.disabled = false;
+            btnNext.style.background = 'var(--blue)';
+        }
+
+        function handleNextAction() {
+            const btnNext = document.getElementById('btnNextQuiz');
+            const feedback = document.getElementById('quizFeedback');
+
+            if (isChecking) {
+                isChecking = false;
+                const isCorrect = selectedBtn.getAttribute('data-correct') === 'true';
+
+                if(isCorrect) correctAnswersCount++;
+
+                document.querySelectorAll('.quiz-opt-btn').forEach(b => {
+                    b.disabled = true;
+                    if (b.getAttribute('data-correct') === 'true') {
+                        b.classList.add('correct');
+                    }
+                    if (b.classList.contains('selected') && b.getAttribute('data-correct') !== 'true') {
+                        b.classList.add('wrong');
+                    }
+                });
+
+                feedback.style.display = 'flex';
+                feedback.className = `quiz-feedback ${isCorrect ? 'success' : 'error'}`;
+                document.getElementById('feedbackIcon').textContent = isCorrect ? '🎉' : '❌';
+                document.getElementById('feedbackTitle').textContent = isCorrect ? 'Chính xác!' : 'Sai mất rồi!';
+                document.getElementById('feedbackDesc').textContent = isCorrect ? 'Tuyệt vời, tiếp tục phát huy nhé.' : 'Cố gắng ở câu sau nhé!';
+
+                btnNext.textContent = 'Tiếp tục';
+                btnNext.style.background = isCorrect ? 'var(--green)' : 'var(--coral)';
+
+            } else {
+                currentQuizIndex++;
+                if (currentQuizIndex >= quizList.length) {
+                    finishQuiz();
+                } else {
+                    renderQuiz();
+                }
+            }
+        }
+
+        function finishQuiz() {
+            document.getElementById('quizPlayerContainer').style.display = 'none';
+            document.getElementById('quizSummaryContainer').style.display = 'block';
+            const scorePct = Math.round((correctAnswersCount / quizList.length) * 100);
+            document.getElementById('finalScoreText').textContent = scorePct;
+        }
+    </script>
 </div>
 </body>
 </html>
-
